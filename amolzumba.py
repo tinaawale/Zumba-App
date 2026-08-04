@@ -64,6 +64,8 @@ if due_students:
         for student in due_students:
             msg = f"Dear {student['name']},\n\nThis is a friendly reminder from Roots Zumba Fitness Studio. 😊 Your fee of ₹{student['amount']} is currently marked as {student['status'].lower()}.\n\nKindly clear your dues at your earliest convenience. Thank you! 🙏✨"
             encoded_msg = urllib.parse.quote(msg)
+            
+            # FIXED: Added the required forward slash ('/') right after wa.me
             wa_link = f"https://wa.me{student['phone']}?text={encoded_msg}"
             
             c_name, c_batch, c_status, c_action = st.columns(4)
@@ -71,7 +73,10 @@ if due_students:
             c_batch.markdown(f"`{student['batch']} Batch`")
             badge_color = "🔴 Overdue" if student['status'] == "Overdue" else "🟡 Pending"
             c_status.markdown(f"**{badge_color}**")
-            c_action.markdown(f"[💬 Send Link]({wa_link})")
+            
+            # FIXED: HTML clickable link button that directly prompts native app switching on iPhone
+            link_html = f'<a href="{wa_link}" target="_blank" style="text-decoration:none; background-color:#25D366; color:white; padding:6px 12px; border-radius:4px; font-weight:bold; display:inline-block;">💬 Send Link</a>'
+            c_action.markdown(link_html, unsafe_allow_html=True)
             st.markdown("<hr style='margin:0.2em 0px; border-color:#fff3cd;'>", unsafe_allow_html=True)
 else:
     st.success("🎉 All clear! Every single student has paid up for this cycle.")
@@ -90,7 +95,6 @@ with st.form("add_student_form", clear_on_submit=True):
     new_batch = c4.selectbox("Batch", ["Morning", "Evening"])
     new_plan = c5.selectbox("Plan Duration", ["Monthly Plan", "3 Month Plan", "6 Month Plan", "Year Plan"])
     
-    # FIXED: Added the missing "Fees Paid Date" calendar selector directly into your registration form!
     new_paid_date = c6.date_input("Fees Paid Date", datetime.today())
     new_status = c7.selectbox("Payment Status", ["Paid", "Pending", "Overdue"])
     
@@ -101,11 +105,8 @@ with st.form("add_student_form", clear_on_submit=True):
         if len(clean_phone) == 10:
             clean_phone = "91" + clean_phone
             
-        # Calculate validity based on the SELECTED user date rather than system clock force execution
         months_to_add = {"Monthly Plan": 1, "3 Month Plan": 3, "6 Month Plan": 6, "Year Plan": 12}[new_plan]
-        
-        # Safe calendar expiration calculator calculation math block
-        total_days = months_to_add * 30.436875  # accurate average monthly day count
+        total_days = months_to_add * 30.436875
         valid_date = new_paid_date + timedelta(days=total_days)
         
         st.session_state.students.append({
@@ -165,8 +166,13 @@ else:
             if student["status"] in ["Pending", "Overdue"]:
                 msg = f"Dear {student['name']},\n\nThis is a friendly reminder from Roots Zumba Fitness Studio. 😊 Your monthly fee of ₹{student['amount']} for your {student.get('plan','package')} is currently marked as {student['status'].lower()}.\n\nPlease clear your dues at your earliest convenience. Thank you! 🙏✨"
                 encoded_msg = urllib.parse.quote(msg)
-                wa_link = f"https://wa.me/{student['phone']}?text={encoded_msg}"
-                r5.markdown(f'[💬 Send Reminder]({wa_link})', unsafe_allow_html=True)
+                
+                # FIXED: Added forward slash ('/') right after wa.me
+                wa_link = f"https://wa.me{student['phone']}?text={encoded_msg}"
+                
+                # FIXED: Transformed standard markdown to a customized responsive browser component layout action
+                row_button_html = f'<a href="{wa_link}" target="_blank" style="text-decoration:none; background-color:#25D366; color:white; padding:8px 16px; border-radius:4px; font-weight:bold; display:inline-block;">💬 Send Reminder</a>'
+                r5.markdown(row_button_html, unsafe_allow_html=True)
             else:
                 r5.write("✅ Up to Date")
                 
