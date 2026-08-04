@@ -65,8 +65,8 @@ if due_students:
             msg = f"Dear {student['name']},\n\nThis is a friendly reminder from Roots Zumba Fitness Studio. 😊 Your fee of ₹{student['amount']} is currently marked as {student['status'].lower()}.\n\nKindly clear your dues at your earliest convenience. Thank you! 🙏✨"
             encoded_msg = urllib.parse.quote(msg)
             
-            # FIXED: Added the required forward slash ('/') right after wa.me
-            wa_link = f"https://wa.me{student['phone']}?text={encoded_msg}"
+            # FIXED DEEP LINK: Uses direct protocol string bypassing web domains completely
+            wa_link = f"whatsapp://send?phone={student['phone']}&text={encoded_msg}"
             
             c_name, c_batch, c_status, c_action = st.columns(4)
             c_name.markdown(f"👤 **{student['name']}**")
@@ -74,8 +74,7 @@ if due_students:
             badge_color = "🔴 Overdue" if student['status'] == "Overdue" else "🟡 Pending"
             c_status.markdown(f"**{badge_color}**")
             
-            # FIXED: HTML clickable link button that directly prompts native app switching on iPhone
-            link_html = f'<a href="{wa_link}" target="_blank" style="text-decoration:none; background-color:#25D366; color:white; padding:6px 12px; border-radius:4px; font-weight:bold; display:inline-block;">💬 Send Link</a>'
+            link_html = f'<a href="{wa_link}" target="_top" style="text-decoration:none; background-color:#25D366; color:white; padding:6px 12px; border-radius:4px; font-weight:bold; display:inline-block;">💬 Send Link</a>'
             c_action.markdown(link_html, unsafe_allow_html=True)
             st.markdown("<hr style='margin:0.2em 0px; border-color:#fff3cd;'>", unsafe_allow_html=True)
 else:
@@ -167,11 +166,10 @@ else:
                 msg = f"Dear {student['name']},\n\nThis is a friendly reminder from Roots Zumba Fitness Studio. 😊 Your monthly fee of ₹{student['amount']} for your {student.get('plan','package')} is currently marked as {student['status'].lower()}.\n\nPlease clear your dues at your earliest convenience. Thank you! 🙏✨"
                 encoded_msg = urllib.parse.quote(msg)
                 
-                # FIXED: Added forward slash ('/') right after wa.me
-                wa_link = f"https://wa.me{student['phone']}?text={encoded_msg}"
+                # FIXED DEEP LINK: Forces iOS to launch native WhatsApp application directly
+                wa_link = f"whatsapp://send?phone={student['phone']}&text={encoded_msg}"
                 
-                # FIXED: Transformed standard markdown to a customized responsive browser component layout action
-                row_button_html = f'<a href="{wa_link}" target="_blank" style="text-decoration:none; background-color:#25D366; color:white; padding:8px 16px; border-radius:4px; font-weight:bold; display:inline-block;">💬 Send Reminder</a>'
+                row_button_html = f'<a href="{wa_link}" target="_top" style="text-decoration:none; background-color:#25D366; color:white; padding:8px 16px; border-radius:4px; font-weight:bold; display:inline-block;">💬 Send Reminder</a>'
                 r5.markdown(row_button_html, unsafe_allow_html=True)
             else:
                 r5.write("✅ Up to Date")
