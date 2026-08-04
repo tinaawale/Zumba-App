@@ -138,7 +138,7 @@ if not df_master.empty:
     for u_name in unique_names:
         history = df_master[df_master['name'] == u_name].sort_values('paid_on', ascending=False)
         latest_record = history.iloc[0]
-        first_record = history.iloc[-1]  # Earliest logged record acts as true "Date of Joining"
+        first_record = history.iloc[-1]  # Earliest record logged acts as true "Date of Joining"
         
         # Apply search and batch filtering logic strings
         if search_query and search_query not in u_name.lower():
@@ -189,6 +189,4 @@ if not df_master.empty:
                 save_data()
                 st.rerun()
                 
-            # FIXED INDENTATION: Aligned 16-space block inside expander container
-            with st.expander(f"📜 View History Ledger Timeline ({len(history)} past entries)"):
-
+            # FIXED INDENTATION IMMUNE WORKFLOW: Using a standard checkbox toggle button line layout
