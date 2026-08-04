@@ -138,8 +138,9 @@ if not df_master.empty:
     for u_name in unique_names:
         history = df_master[df_master['name'] == u_name].sort_values('paid_on', ascending=False)
         latest_record = history.iloc[0]
-        first_record = history.iloc[-1]
+        first_record = history.iloc[-1]  # Earliest logged record acts as true "Date of Joining"
         
+        # Apply search and batch filtering logic strings
         if search_query and search_query not in u_name.lower():
             continue
         if batch_filter == "Morning Batch Only" and latest_record['batch'] != "Morning":
@@ -150,8 +151,10 @@ if not df_master.empty:
         master_idx = st.session_state.students.index(latest_record.to_dict())
         
         with st.container():
+            # PRIMARY DETAILS FIRST ROW
             r1, r2, r3, r4, r5, r6 = st.columns([2.2, 2.2, 1.2, 1.2, 1.5, 0.7])
             
+            # Primary Details Block Layout
             r1.markdown(f"👤 **{latest_record['name']}**  \n`🌅 {latest_record['batch']} Batch`  \n📅 **Joined On:** `{first_record['paid_on']}`")
             r2.markdown(f"📱 +{latest_record['phone']}  \n📦 **Current Plan:** {latest_record['plan']}")
             
@@ -172,6 +175,7 @@ if not df_master.empty:
                 
             r4.markdown(f"💰 **Last Fee:** ₹{latest_record['amount']}  \n⌛ **Expires On:** `{latest_record['valid_till']}`")
             
+            # WhatsApp direct reminder link
             if latest_record["status"] in ["Pending", "Overdue"]:
                 msg = f"Dear {latest_record['name']},\n\nThis is a friendly reminder from Roots Zumba Fitness Studio. 😊 Your monthly fee of ₹{latest_record['amount']} is currently marked as {latest_record['status'].lower()}.\n\nPlease clear your dues at your earliest convenience. Thank you! 🙏✨"
                 encoded_msg = urllib.parse.quote(msg)
@@ -185,11 +189,6 @@ if not df_master.empty:
                 save_data()
                 st.rerun()
                 
-            # NEW CUSTOM HISTORY DESIGN BLOCK: Render clean inline icons instead of box headers
-            with st.expander("📜 Click to Open Complete Payment Ledger History Timeline"):
-                st.markdown(f"#### 📜 Payment Ledger Timeline logs for {latest_record['name']}")
-                hist_list = []
-                for _, h_row in history.iterrows():
-                    hist_list.append({
-                        "Fees Paid On": h_row['paid_on'],
-                        "Plan Duration": h_row['plan'],
+            # HISTORY ICON BUTTON INTERFACE RIGHT BELOW PRIMARY DETAILS
+            with st.expander(f"📜 Click to See Previous Payment History ({len(history)} entries)"):
+                st.markdown(f"#### 🗓️ Complete Payments History Timeline for {latest_record['name']}")
