@@ -104,7 +104,7 @@ for idx, student in enumerate(st.session_state.students):
             msg = f"Dear {student['name']},\n\nThis is a friendly reminder from Roots Zumba Studio. 💃 Your {student['plan']} tracking status is currently marked as {student['status'].lower()}.\n\nKindly clear your dues at your earliest convenience. Thank you! 🙏✨"
             encoded_msg = urllib.parse.quote(msg)
             # Universal format that forces iPhone iOS to redirect directly to the native WhatsApp App
-            wa_link = f"https://wa.me{student['phone']}?text={encoded_msg}"
+            wa_link = f"https://wa.me/{student['phone']}?text={encoded_msg}"
             
             # Using standard markdown buttons which are 100% responsive and clickable on touchscreens
             st.link_button("💬 Send WhatsApp Reminder", wa_link, use_container_width=True)
