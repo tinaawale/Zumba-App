@@ -46,30 +46,22 @@ col5.metric("Collected Income", f"₹{total_earnings}")
 
 st.markdown("---")
 
-# NEW FEATURE: POP-UP DUES RADAR REMINDER BOX
+# Pending Dues Radar Reminder Box
 st.header("🚨 Pending Dues Reminder Radar")
 due_students = [s for s in st.session_state.students if s["status"] in ["Pending", "Overdue"]]
 
 if due_students:
-    with st.expander(f"⚠️ YOU HAVE {len(due_students)} PENDING DUES TO COLLECT! Tap here to see quick links.", expanded=True):
-        st.warning("The following students have unpaid fees. Tap 'Send Link' to quickly message them on WhatsApp:")
-        
+    with st.expander(f"⚠️ YOU HAVE {len(due_students)} PENDING DUES TO COLLECT!", expanded=True):
         for student in due_students:
-            master_idx = st.session_state.students.index(student)
-            
-            # Create the custom pre-filled message string
             msg = f"Dear {student['name']},\n\nThis is a friendly reminder from Roots Zumba Fitness Studio. 😊 Your fee of ₹{student['amount']} is currently marked as {student['status'].lower()}.\n\nKindly clear your dues at your earliest convenience. Thank you! 🙏✨"
             encoded_msg = urllib.parse.quote(msg)
-            wa_link = f"https://wa.me/{student['phone']}?text={encoded_msg}"
+            wa_link = f"https://wa.me{student['phone']}?text={encoded_msg}"
             
-            # Display a clean alert list inside the popup dashboard container box
-            c_name, c_batch, c_status, c_action = st.columns([3, 2, 2, 3])
+            c_name, c_batch, c_status, c_action = st.columns(4)
             c_name.markdown(f"👤 **{student['name']}**")
             c_batch.markdown(f"`{student['batch']} Batch`")
-            
             badge_color = "🔴 Overdue" if student['status'] == "Overdue" else "🟡 Pending"
             c_status.markdown(f"**{badge_color}**")
-            
             c_action.markdown(f"[💬 Send Link]({wa_link})")
             st.markdown("<hr style='margin:0.2em 0px; border-color:#fff3cd;'>", unsafe_allow_html=True)
 else:
@@ -134,7 +126,8 @@ else:
         master_idx = st.session_state.students.index(student)
         
         with st.container():
-            r1, r2, r3, r4, r5 = st.columns([2, 2, 1.5, 1.5, 2])
+            # NEW LAYOUT DESIGN: Adjusted columns layout to seamlessly house the trash icon button structure
+            r1, r2, r3, r4, r5, r6 = st.columns([2, 2, 1.2, 1.2, 1.5, 0.8])
             
             r1.markdown(f"👤 **{student['name']}**  \n`🌅 {student.get('batch', 'Morning')}`")
             r2.markdown(f"📱 +{student['phone']}  \n🗓️ Plan: {student.get('plan', 'Monthly')}")
@@ -154,11 +147,20 @@ else:
             if student["status"] in ["Pending", "Overdue"]:
                 msg = f"Dear {student['name']},\n\nThis is a friendly reminder from Roots Zumba Fitness Studio. 😊 Your monthly fee of ₹{student['amount']} for your {student.get('plan','package')} is currently marked as {student['status'].lower()}.\n\nPlease clear your dues at your earliest convenience. Thank you! 🙏✨"
                 encoded_msg = urllib.parse.quote(msg)
-                wa_link = f"https://wa.me/{student['phone']}?text={encoded_msg}"
+                wa_link = f"https://wa.me{student['phone']}?text={encoded_msg}"
                 r5.markdown(f'[💬 Send Reminder]({wa_link})', unsafe_allow_html=True)
             else:
                 r5.write("✅ Up to Date")
+                
+            # NEW FEATURE: One-Click Instant Delete Trigger Button Element Block
+            if r6.button("🗑️", key=f"del_{master_idx}", help=f"Remove {student['name']} permanently"):
+                st.session_state.students.pop(master_idx)
+                save_data()
+                st.toast(f"Removed {student['name']} from roster.")
+                st.rerun()
+                
             st.markdown("<hr style='margin:0.5em 0px; border-color:#eee;'>", unsafe_allow_html=True)
+
 
 
 
