@@ -39,8 +39,14 @@ def save_data():
 st.title("💃 Roots Zumba Fitness Studio - Class Manager")
 st.subheader(f"Trackings & Dues for {datetime.now().strftime('%B %Y')}")
 
-if 'students' in st.session_state and len(st.session_state.students) > 0:
+# Convert list to DataFrame for quick operations
+if st.session_state.students:
     df_master = pd.DataFrame(st.session_state.students)
+else:
+    df_master = pd.DataFrame(columns=["name", "phone", "batch", "plan", "paid_on", "valid_till", "status", "amount"])
+
+# Calculate metrics based only on the LATEST status of each unique student
+if not df_master.empty:
     df_latest = df_master.sort_values('paid_on').groupby('name').last().reset_index()
     total_students = len(df_latest['name'].unique())
     paid_count = sum(1 for s in df_latest['status'] if s == "Paid")
@@ -48,7 +54,6 @@ if 'students' in st.session_state and len(st.session_state.students) > 0:
     overdue_count = sum(1 for s in df_latest['status'] if s == "Overdue")
     total_earnings = sum(int(s) for s in df_master[df_master['status'] == "Paid"]['amount'])
 else:
-    df_master = pd.DataFrame()
     total_students = paid_count = pending_count = overdue_count = total_earnings = 0
 
 col1, col2, col3, col4, col5 = st.columns(5)
@@ -60,7 +65,7 @@ col5.metric("Collected Income", f"₹{total_earnings}")
 
 st.markdown("---")
 
-# Pending Dues Radar Reminder Box
+# Pending Dues Radar Reminder Box (Looks at latest student status entries)
 st.header("🚨 Pending Dues Reminder Radar")
 if not df_master.empty:
     df_due = df_latest[df_latest['status'].isin(["Pending", "Overdue"])]
@@ -91,7 +96,7 @@ st.markdown("---")
 st.header("➕ Register Student or Log Renewal Payment")
 with st.form("add_student_form", clear_on_submit=True):
     c1, c2, c3 = st.columns(3)
-    new_name = c1.text_input("Full Name")
+    new_name = c1.text_input("Full Name (Type exactly to add a new month log to an existing user)")
     new_phone = c2.text_input("WhatsApp Number (10 digits or with 91)")
     new_amount = c3.number_input("Monthly Fee (INR)", min_value=0, value=1500, step=100)
     
@@ -131,7 +136,9 @@ st.markdown("---")
 # Section 2: Separate Batch Tab Layout Filtering Selection
 st.header("📋 Student Directory")
 
+# Integrated Live Search Box
 search_query = st.text_input("🔍 Search Student Profile by Name:", "").lower().strip()
+
 batch_filter = st.radio("Filter View by Batch:", ["All Students", "Morning Batch Only", "Evening Batch Only"], horizontal=True)
 
 if not df_master.empty:
@@ -149,32 +156,26 @@ if not df_master.empty:
         elif batch_filter == "Evening Batch Only" and latest_record['batch'] != "Evening":
             continue
             
-        # Match latest row structure safely
-        latest_dict = latest_record.to_dict()
-        master_idx = -1
-        for i, s in enumerate(st.session_state.students):
-            if s['name'] == latest_dict['name'] and s['paid_on'] == latest_dict['paid_on']:
-                master_idx = i
-                break
+        master_idx = st.session_state.students.index(latest_record.to_dict())
         
-        if master_idx == -1:
-            continue
-            
         with st.container():
             r1, r2, r3, r4, r5, r6 = st.columns([2.2, 2.2, 1.2, 1.2, 1.5, 0.7])
             
             r1.markdown(f"👤 **{latest_record['name']}**  \n`🌅 {latest_record['batch']} Batch`")
-            r2.markdown(f"📱 +{latest_record['phone']}  \n💳 **Paid On:** `{latest_record['paid_on']}`")
+            r2.markdown(f"📱 +{latest_record['phone']}  \n🗓️ Plan: {latest_record['plan']}")
             
             new_status = r3.selectbox(
-                "Status", ["Paid", "Pending", "Overdue"], 
+                "Current Status", ["Paid", "Pending", "Overdue"], 
                 index=["Paid", "Pending", "Overdue"].index(latest_record["status"]), 
                 key=f"status_{master_idx}"
             )
             if new_status != latest_record["status"]:
-                st.session_state.students[master_idx]["status"] = new_status
-                if new_status == "Paid":
-                    st.session_state.students[master_idx]["paid_on"] = datetime.now().strftime("%Y-%m-%d")
+                for i, s in enumerate(st.session_state.students):
+                    if s['name'] == latest_record['name'] and s['paid_on'] == latest_record['paid_on']:
+                        st.session_state.students[i]["status"] = new_status
+                        if new_status == "Paid":
+                            st.session_state.students[i]["paid_on"] = datetime.now().strftime("%Y-%m-%d")
+                        break
                 save_data()
                 st.rerun()
                 
@@ -193,14 +194,9 @@ if not df_master.empty:
                 save_data()
                 st.rerun()
                 
-            with st.expander(f"📜 View Complete Ledger ({len(history)} entries)"):
+            # Fixed History Expander Loop Block
+            with st.expander(f"📜 View {latest_record['name']}'s Complete Payment Ledger ({len(history)} entries)"):
                 st.markdown(f"### 🗓️ Payment History Timeline for {latest_record['name']}")
-                hist_data = []
-                for _, h_row in history.iterrows():
-                    hist_data.append({
-                        "Fees Paid On": h_row['paid_on'],
-                        "Package Plan": h_row['plan'],
-                        "Amount Paid": f"₹{h_row['amount']}",
 
 
 
