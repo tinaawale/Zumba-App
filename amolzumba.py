@@ -103,5 +103,5 @@ for idx, student in enumerate(st.session_state.students):
         if student["status"] != "Paid":
             msg = f"Dear {student['name']},\n\nThis is a friendly reminder from Roots Zumba Studio. 😊 Your {student['plan']} tracking status is currently marked as {student['status'].lower()}.\n\nYour validity ends on {student['valid_till']}. Kindly clear your dues at your earliest convenience. Thank you! 🙏💃"
             encoded_msg = urllib.parse.quote(msg)
-                    wa_link = f"whatsapp://send?phone={student['phone']}&text={encoded_msg}"
-        st.markdown(f'<a href="{wa_link}" target="_self" style="display:inline-block; background:#25D366; color:white; padding:10px 20px; text-decoration:none; border-radius:5px; font-weight:bold;">💬 Send WhatsApp Reminder</a>', unsafe_allow_html=True)
+            wa_link = f"whatsapp://send?phone={student['phone']}&text={encoded_msg}"
+            st.markdown(f'<a href="{wa_link}" target="_self" style="display:inline-block; background:#25D366; color:white; padding:10px 20px; text-decoration:none; border-radius:5px; font-weight:bold;">💬 Send WhatsApp Reminder</a>', unsafe_allow_html=True)
