@@ -165,7 +165,7 @@ else:
             if student["status"] in ["Pending", "Overdue"]:
                 msg = f"Dear {student['name']},\n\nThis is a friendly reminder from Roots Zumba Fitness Studio. 😊 Your monthly fee of ₹{student['amount']} for your {student.get('plan','package')} is currently marked as {student['status'].lower()}.\n\nPlease clear your dues at your earliest convenience. Thank you! 🙏✨"
                 encoded_msg = urllib.parse.quote(msg)
-                wa_link = f"https://wa.me{student['phone']}?text={encoded_msg}"
+                wa_link = f"https://wa.me/{student['phone']}?text={encoded_msg}"
                 r5.markdown(f'[💬 Send Reminder]({wa_link})', unsafe_allow_html=True)
             else:
                 r5.write("✅ Up to Date")
