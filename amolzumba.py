@@ -4,26 +4,13 @@ import urllib.parse
 from datetime import datetime
 import os
 
-# Page configurations optimized for vertical mobile phone screens
-st.set_page_config(page_title="Roots Zumba App", page_icon="💃", layout="centered")
+# Set web page configuration
+st.set_page_config(page_title="Roots Zumba Manager", page_icon="💃", layout="wide")
 
-# NATIVE IPHONE SHORTCUT INJECTION
-st.markdown("""
-    <head>
-        <meta name="apple-mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-        <meta name="apple-mobile-web-app-title" content="Roots Zumba">
-        <link rel="apple-touch-icon" href="https://icons8.com">
-    </head>
-    <style>
-        .block-container { padding-top: 1rem !important; padding-bottom: 1rem !important; }
-        div[data-testid="stMetric"] { background-color: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 8px; }
-    </style>
-""", unsafe_allow_html=True)
+# Persistent storage file path
+DB_FILE = "zumba_students_data.csv"
 
-DB_FILE = "zumba_students_database.csv"
-
-# Sync data base
+# Load existing data or initialize default records
 if 'students' not in st.session_state:
     if os.path.exists(DB_FILE):
         df = pd.read_csv(DB_FILE)
@@ -31,81 +18,120 @@ if 'students' not in st.session_state:
         st.session_state.students = df.to_dict('records')
     else:
         st.session_state.students = [
-            {"name": "Priya Awale", "batch": "Morning", "paid_on": "2026-08-04", "plan": "3 Month Plan", "valid_till": "2026-11-04", "phone": "919284564621", "status": "Paid"}
+            {"name": "Rahul Sharma", "phone": "919876543210", "batch": "Morning", "plan": "Monthly Plan", "paid_on": "2026-08-01", "valid_till": "2026-09-01", "status": "Paid", "amount": 1500},
+            {"name": "Priya Patel", "phone": "918765432109", "batch": "Evening", "plan": "3 Month Plan", "paid_on": "2026-08-01", "valid_till": "2026-11-01", "status": "Pending", "amount": 4000},
         ]
 
 def save_data():
     df = pd.DataFrame(st.session_state.students)
     df.to_csv(DB_FILE, index=False)
 
-st.title("💃 Roots Zumba App")
-st.markdown("---")
+st.title("💃 Roots Zumba Fitness Studio - Class Manager")
+st.subheader(f"Trackings & Dues for {datetime.now().strftime('%B %Y')}")
 
-# Compact Metrics for Mobile View
+# Top Metric Dashboard Panels
 total_students = len(st.session_state.students)
 paid_count = sum(1 for s in st.session_state.students if s["status"] == "Paid")
-pending_count = sum(1 for s in st.session_state.students if s.get("status", "Pending") in ["Unpaid", "Pending"])
+pending_count = sum(1 for s in st.session_state.students if s["status"] == "Pending")
+overdue_count = sum(1 for s in st.session_state.students if s["status"] == "Overdue")
+total_earnings = sum(int(s["amount"]) for s in st.session_state.students if s["status"] == "Paid")
 
-m1, m2, m3 = st.columns(3)
-m1.metric("Total", total_students)
-m2.metric("Paid ✅", paid_count)
-m3.metric("Dues 🚨", pending_count)
+col1, col2, col3, col4, col5 = st.columns(5)
+col1.metric("Total Active Students", total_students)
+col2.metric("Paid ✅", paid_count)
+col3.metric("Pending ⏳", pending_count)
+col4.metric("Overdue 🚨", overdue_count)
+col5.metric("Collected Income", f"₹{total_earnings}")
 
 st.markdown("---")
 
-# Mobile Data Input Form
-st.subheader("➕ Add New Student")
+# Section 1: Register a New Member
+st.header("➕ Register New Student")
 with st.form("add_student_form", clear_on_submit=True):
-    new_name = st.text_input("Student Full Name")
-    new_batch = st.selectbox("Select Batch", ["Morning", "Evening"])
-    new_date = st.date_input("Fees Paid on Date", value=datetime.now())
-    new_plan = st.selectbox("Package Duration", ["Monthly Plan", "3 Month Plan", "6 Month Plan", "Year Plan"])
-    new_phone = st.text_input("WhatsApp Number (10 digits)")
-    new_status = st.selectbox("Payment Status", ["Paid", "Unpaid", "Pending"])
+    c1, c2, c3 = st.columns(3)
+    new_name = c1.text_input("Full Name")
+    new_phone = c2.text_input("WhatsApp Number (10 digits or with 91)")
+    new_amount = c3.number_input("Monthly Fee (INR)", min_value=0, value=1500, step=100)
     
-    submit_btn = st.form_submit_button("Save Student to App")
+    c4, c5, c6 = st.columns(3)
+    new_batch = c4.selectbox("Batch", ["Morning", "Evening"])
+    new_plan = c5.selectbox("Plan Duration", ["Monthly Plan", "3 Month Plan", "6 Month Plan", "Year Plan"])
+    new_status = c6.selectbox("Payment Status", ["Paid", "Pending", "Overdue"])
+    
+    submit_btn = st.form_submit_button("Add Student to Roster")
     
     if submit_btn and new_name and new_phone:
         clean_phone = "".join(filter(str.isdigit, new_phone))
         if len(clean_phone) == 10:
             clean_phone = "91" + clean_phone
             
-        # Automatic Expiration Date Math
+        # Auto-calculate validity based on current date and plan choice
+        today = datetime.now()
         months_to_add = {"Monthly Plan": 1, "3 Month Plan": 3, "6 Month Plan": 6, "Year Plan": 12}[new_plan]
-        valid_date = pd.to_datetime(new_date) + pd.DateOffset(months=months_to_add)
+        valid_date = today.replace(month=(today.month + months_to_add - 1) % 12 + 1, year=today.year + (today.month + months_to_add - 1) // 12)
         
         st.session_state.students.append({
-            "name": new_name, "batch": new_batch, "paid_on": str(new_date),
-            "plan": new_plan, "valid_till": valid_date.strftime("%Y-%m-%d"),
-            "phone": clean_phone, "status": new_status
+            "name": new_name,
+            "phone": clean_phone,
+            "batch": new_batch,
+            "plan": new_plan,
+            "paid_on": today.strftime("%Y-%m-%d"),
+            "valid_till": valid_date.strftime("%Y-%m-%d"),
+            "status": new_status,
+            "amount": new_amount
         })
         save_data()
-        st.success(f"Added {new_name} successfully!")
+        st.success(f"Successfully added {new_name} to the roster!")
         st.rerun()
 
 st.markdown("---")
 
-# Roster and Dynamic Reminder Triggers
-st.subheader("📋 Class Roster")
-for idx, student in enumerate(st.session_state.students):
-    with st.expander(f"👤 {student['name']} ({student['batch']}) - {student['status']}"):
-        st.write(f"**📞 Phone:** +{student['phone']}")
-        st.write(f"**📦 Plan Type:** {student['plan']}")
-        st.write(f"**📅 Paid Date:** {student['paid_on']}")
-        st.write(f"**🚨 Valid Till:** {student['valid_till']}")
+# NEW FEATURE: Separate Batch Tab Layout Filtering Selection
+st.header("📋 Student Directory & Payment Tracking")
+batch_filter = st.radio("🔍 Filter Roster View by Batch:", ["All Students", "Morning Batch Only", "Evening Batch Only"], horizontal=True)
+
+# Filter the students dataset list based on user tab selection
+filtered_students = st.session_state.students
+if batch_filter == "Morning Batch Only":
+    filtered_students = [s for s in st.session_state.students if s.get("batch") == "Morning"]
+elif batch_filter == "Evening Batch Only":
+    filtered_students = [s for s in st.session_state.students if s.get("batch") == "Evening"]
+
+if not filtered_students:
+    st.info("No students found matching this batch filter option.")
+else:
+    for idx, student in enumerate(filtered_students):
+        # Locate the exact correct student index pointer from the master original database layout
+        master_idx = st.session_state.students.index(student)
         
-        new_status = st.selectbox("Quick Change Status", ["Paid", "Unpaid", "Pending"], index=["Paid", "Unpaid", "Pending"].index(student["status"]), key=f"edit_status_{idx}")
-        if new_status != student["status"]:
-            st.session_state.students[idx]["status"] = new_status
-            save_data()
-            st.rerun()
+        with st.container():
+            r1, r2, r3, r4, r5 = st.columns([2, 2, 1.5, 1.5, 2])
             
-        if student["status"] != "Paid":
-            msg = f"Dear {student['name']},\n\nThis is a friendly reminder from Roots Zumba Studio. 💃 Your {student['plan']} tracking status is currently marked as {student['status'].lower()}.\n\nKindly clear your dues at your earliest convenience. Thank you! 🙏✨"
-            encoded_msg = urllib.parse.quote(msg)
-            # Universal format that forces iPhone iOS to redirect directly to the native WhatsApp App
-            wa_link = f"https://wa.me/{student['phone']}?text={encoded_msg}"
+            # Displays name along with their morning/evening badge type indicator
+            r1.markdown(f"👤 **{student['name']}**  \n`🌅 {student.get('batch', 'Not Assigned')}`")
+            r2.markdown(f"📱 +{student['phone']}  \n🗓️ Plan: {student.get('plan', 'Monthly')}")
             
-            # Using standard markdown buttons which are 100% responsive and clickable on touchscreens
-            st.link_button("💬 Send WhatsApp Reminder", wa_link, use_container_width=True)
+            new_status = r3.selectbox(
+                "Status", ["Paid", "Pending", "Overdue"], 
+                index=["Paid", "Pending", "Overdue"].index(student["status"]), 
+                key=f"status_{master_idx}"
+            )
+            if new_status != student["status"]:
+                st.session_state.students[master_idx]["status"] = new_status
+                save_data()
+                st.rerun()
+                
+            r4.text(f"💰 ₹{student['amount']}  \n⌛ Exp: {student.get('valid_till', 'N/A')}")
+            
+            if student["status"] in ["Pending", "Overdue"]:
+                msg = f"Dear {student['name']},\n\nThis is a friendly reminder from Roots Zumba Fitness Studio. 😊 Your monthly fee of ₹{student['amount']} for your {student.get('plan','package')} is currently marked as {student['status'].lower()}.\n\nPlease clear your dues at your earliest convenience. Thank you! 🙏✨"
+                encoded_msg = urllib.parse.quote(msg)
+                
+                # Single-slash fixed link format
+                wa_link = f"https://wa.me/{student['phone']}?text={encoded_msg}"
+                r5.markdown(f'[💬 Send Reminder]({wa_link})', unsafe_allow_html=True)
+            else:
+                r5.write("✅ Up to Date")
+            st.markdown("<hr style='margin:0.5em 0px; border-color:#eee;'>", unsafe_allow_html=True)
+
 
