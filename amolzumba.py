@@ -20,6 +20,7 @@ if 'students' not in st.session_state:
         st.session_state.students = [
             {"name": "Rahul Sharma", "phone": "919876543210", "batch": "Morning", "plan": "Monthly Plan", "paid_on": "2026-08-01", "valid_till": "2026-09-01", "status": "Paid", "amount": 1500},
             {"name": "Priya Patel", "phone": "918765432109", "batch": "Evening", "plan": "3 Month Plan", "paid_on": "2026-08-01", "valid_till": "2026-11-01", "status": "Pending", "amount": 4000},
+            {"name": "Sneha Kulkarni", "phone": "916543210987", "batch": "Morning", "plan": "Monthly Plan", "paid_on": "2026-07-01", "valid_till": "2026-08-01", "status": "Overdue", "amount": 1500},
         ]
 
 def save_data():
@@ -45,6 +46,37 @@ col5.metric("Collected Income", f"₹{total_earnings}")
 
 st.markdown("---")
 
+# NEW FEATURE: POP-UP DUES RADAR REMINDER BOX
+st.header("🚨 Pending Dues Reminder Radar")
+due_students = [s for s in st.session_state.students if s["status"] in ["Pending", "Overdue"]]
+
+if due_students:
+    with st.expander(f"⚠️ YOU HAVE {len(due_students)} PENDING DUES TO COLLECT! Tap here to see quick links.", expanded=True):
+        st.warning("The following students have unpaid fees. Tap 'Send Link' to quickly message them on WhatsApp:")
+        
+        for student in due_students:
+            master_idx = st.session_state.students.index(student)
+            
+            # Create the custom pre-filled message string
+            msg = f"Dear {student['name']},\n\nThis is a friendly reminder from Roots Zumba Fitness Studio. 😊 Your fee of ₹{student['amount']} is currently marked as {student['status'].lower()}.\n\nKindly clear your dues at your earliest convenience. Thank you! 🙏✨"
+            encoded_msg = urllib.parse.quote(msg)
+            wa_link = f"https://wa.me/{student['phone']}?text={encoded_msg}"
+            
+            # Display a clean alert list inside the popup dashboard container box
+            c_name, c_batch, c_status, c_action = st.columns([3, 2, 2, 3])
+            c_name.markdown(f"👤 **{student['name']}**")
+            c_batch.markdown(f"`{student['batch']} Batch`")
+            
+            badge_color = "🔴 Overdue" if student['status'] == "Overdue" else "🟡 Pending"
+            c_status.markdown(f"**{badge_color}**")
+            
+            c_action.markdown(f"[💬 Send Link]({wa_link})")
+            st.markdown("<hr style='margin:0.2em 0px; border-color:#fff3cd;'>", unsafe_allow_html=True)
+else:
+    st.success("🎉 All clear! Every single student has paid up for this cycle.")
+
+st.markdown("---")
+
 # Section 1: Register a New Member
 st.header("➕ Register New Student")
 with st.form("add_student_form", clear_on_submit=True):
@@ -65,7 +97,6 @@ with st.form("add_student_form", clear_on_submit=True):
         if len(clean_phone) == 10:
             clean_phone = "91" + clean_phone
             
-        # Auto-calculate validity based on current date and plan choice
         today = datetime.now()
         months_to_add = {"Monthly Plan": 1, "3 Month Plan": 3, "6 Month Plan": 6, "Year Plan": 12}[new_plan]
         valid_date = today.replace(month=(today.month + months_to_add - 1) % 12 + 1, year=today.year + (today.month + months_to_add - 1) // 12)
@@ -86,11 +117,10 @@ with st.form("add_student_form", clear_on_submit=True):
 
 st.markdown("---")
 
-# NEW FEATURE: Separate Batch Tab Layout Filtering Selection
-st.header("📋 Student Directory & Payment Tracking")
-batch_filter = st.radio("🔍 Filter Roster View by Batch:", ["All Students", "Morning Batch Only", "Evening Batch Only"], horizontal=True)
+# Section 2: Separate Batch Tab Layout Filtering Selection
+st.header("📋 Student Directory")
+batch_filter = st.radio("Filter View by Batch:", ["All Students", "Morning Batch Only", "Evening Batch Only"], horizontal=True)
 
-# Filter the students dataset list based on user tab selection
 filtered_students = st.session_state.students
 if batch_filter == "Morning Batch Only":
     filtered_students = [s for s in st.session_state.students if s.get("batch") == "Morning"]
@@ -98,17 +128,15 @@ elif batch_filter == "Evening Batch Only":
     filtered_students = [s for s in st.session_state.students if s.get("batch") == "Evening"]
 
 if not filtered_students:
-    st.info("No students found matching this batch filter option.")
+    st.info("No students found matching this filter.")
 else:
     for idx, student in enumerate(filtered_students):
-        # Locate the exact correct student index pointer from the master original database layout
         master_idx = st.session_state.students.index(student)
         
         with st.container():
             r1, r2, r3, r4, r5 = st.columns([2, 2, 1.5, 1.5, 2])
             
-            # Displays name along with their morning/evening badge type indicator
-            r1.markdown(f"👤 **{student['name']}**  \n`🌅 {student.get('batch', 'Not Assigned')}`")
+            r1.markdown(f"👤 **{student['name']}**  \n`🌅 {student.get('batch', 'Morning')}`")
             r2.markdown(f"📱 +{student['phone']}  \n🗓️ Plan: {student.get('plan', 'Monthly')}")
             
             new_status = r3.selectbox(
@@ -126,12 +154,11 @@ else:
             if student["status"] in ["Pending", "Overdue"]:
                 msg = f"Dear {student['name']},\n\nThis is a friendly reminder from Roots Zumba Fitness Studio. 😊 Your monthly fee of ₹{student['amount']} for your {student.get('plan','package')} is currently marked as {student['status'].lower()}.\n\nPlease clear your dues at your earliest convenience. Thank you! 🙏✨"
                 encoded_msg = urllib.parse.quote(msg)
-                
-                # Single-slash fixed link format
                 wa_link = f"https://wa.me/{student['phone']}?text={encoded_msg}"
                 r5.markdown(f'[💬 Send Reminder]({wa_link})', unsafe_allow_html=True)
             else:
                 r5.write("✅ Up to Date")
             st.markdown("<hr style='margin:0.5em 0px; border-color:#eee;'>", unsafe_allow_html=True)
+
 
 
