@@ -189,9 +189,6 @@ if not df_master.empty:
                 save_data()
                 st.rerun()
                 
-            # FIXED PLACEMENT: Interactive History Pop-up Tray built right below the Primary Details Card!
+            # FIXED INDENTATION BLOCK: Everything inside this expander is now spaced perfectly to prevent alignment errors
             with st.expander(f"📜 View History Ledger Timeline ({len(history)} past entries)"):
-
-
-
 
