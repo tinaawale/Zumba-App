@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import urllib.parse
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 
 # Set web page configuration
@@ -15,7 +15,6 @@ if 'students' not in st.session_state:
     loaded = False
     if os.path.exists(DB_FILE):
         try:
-            # Check if file size is greater than 0 bytes to prevent EmptyDataError
             if os.path.getsize(DB_FILE) > 0:
                 df = pd.read_csv(DB_FILE)
                 if not df.empty:
@@ -23,15 +22,13 @@ if 'students' not in st.session_state:
                     st.session_state.students = df.to_dict('records')
                     loaded = True
         except Exception:
-            pass  # If file reading fails, fall back to default setup safely
+            pass
             
     if not loaded:
-        # Default fresh template setup if file is missing, empty, or corrupt
         st.session_state.students = [
             {"name": "Rahul Sharma", "phone": "919876543210", "batch": "Morning", "plan": "Monthly Plan", "paid_on": "2026-08-01", "valid_till": "2026-09-01", "status": "Paid", "amount": 1500},
             {"name": "Priya Patel", "phone": "918765432109", "batch": "Evening", "plan": "3 Month Plan", "paid_on": "2026-08-01", "valid_till": "2026-11-01", "status": "Pending", "amount": 4000},
         ]
-        # Force write a clean layout structure right away
         df = pd.DataFrame(st.session_state.students)
         df.to_csv(DB_FILE, index=False)
 
@@ -89,10 +86,13 @@ with st.form("add_student_form", clear_on_submit=True):
     new_phone = c2.text_input("WhatsApp Number (10 digits or with 91)")
     new_amount = c3.number_input("Monthly Fee (INR)", min_value=0, value=1500, step=100)
     
-    c4, c5, c6 = st.columns(3)
+    c4, c5, c6, c7 = st.columns(4)
     new_batch = c4.selectbox("Batch", ["Morning", "Evening"])
     new_plan = c5.selectbox("Plan Duration", ["Monthly Plan", "3 Month Plan", "6 Month Plan", "Year Plan"])
-    new_status = c6.selectbox("Payment Status", ["Paid", "Pending", "Overdue"])
+    
+    # FIXED: Added the missing "Fees Paid Date" calendar selector directly into your registration form!
+    new_paid_date = c6.date_input("Fees Paid Date", datetime.today())
+    new_status = c7.selectbox("Payment Status", ["Paid", "Pending", "Overdue"])
     
     submit_btn = st.form_submit_button("Add Student to Roster")
     
@@ -101,16 +101,19 @@ with st.form("add_student_form", clear_on_submit=True):
         if len(clean_phone) == 10:
             clean_phone = "91" + clean_phone
             
-        today = datetime.now()
+        # Calculate validity based on the SELECTED user date rather than system clock force execution
         months_to_add = {"Monthly Plan": 1, "3 Month Plan": 3, "6 Month Plan": 6, "Year Plan": 12}[new_plan]
-        valid_date = today.replace(month=(today.month + months_to_add - 1) % 12 + 1, year=today.year + (today.month + months_to_add - 1) // 12)
+        
+        # Safe calendar expiration calculator calculation math block
+        total_days = months_to_add * 30.436875  # accurate average monthly day count
+        valid_date = new_paid_date + timedelta(days=total_days)
         
         st.session_state.students.append({
             "name": new_name,
             "phone": clean_phone,
             "batch": new_batch,
             "plan": new_plan,
-            "paid_on": today.strftime("%Y-%m-%d"),
+            "paid_on": new_paid_date.strftime("%Y-%m-%d"),
             "valid_till": valid_date.strftime("%Y-%m-%d"),
             "status": new_status,
             "amount": new_amount
@@ -173,6 +176,7 @@ else:
                 st.rerun()
                 
             st.markdown("<hr style='margin:0.5em 0px; border-color:#eee;'>", unsafe_allow_html=True)
+
 
 
 
