@@ -10,7 +10,7 @@ st.set_page_config(page_title="Roots Zumba Manager", page_icon="💃", layout="w
 # Persistent storage file path
 DB_FILE = "zumba_students_data.csv"
 
-# Load existing data with automatic error recovery and history structure checks
+# Load existing data with automatic error recovery
 if 'students' not in st.session_state:
     loaded = False
     if os.path.exists(DB_FILE):
@@ -19,60 +19,40 @@ if 'students' not in st.session_state:
                 df = pd.read_csv(DB_FILE)
                 if not df.empty:
                     df['phone'] = df['phone'].astype(str)
-                    # Convert history string back to a list of dicts safely
-                    records = df.to_dict('records')
-                    for r in records:
-                        if 'history' in r and isinstance(r['history'], str) and r['history'].strip():
-                            try:
-                                r['history'] = eval(r['history'])
-                            except:
-                                r['history'] = []
-                        elif 'history' not in r or not isinstance(r['history'], list):
-                            # Fallback: create initial log entry from existing row parameters
-                            r['history'] = [{"date": r.get('paid_on', '2026-08-04'), "amount": r.get('amount', 1500), "plan": r.get('plan', 'Monthly Plan'), "status": r.get('status', 'Paid')}]
-                    st.session_state.students = records
+                    st.session_state.students = df.to_dict('records')
                     loaded = True
         except Exception:
             pass
             
     if not loaded:
-        # Default fresh template setup with built-in history tracks
+        # Default fresh template setup with full historical columns
         st.session_state.students = [
-            {
-                "name": "Rahul Sharma", "phone": "919876543210", "batch": "Morning", "plan": "Monthly Plan", 
-                "paid_on": "2026-08-01", "valid_till": "2026-09-01", "status": "Paid", "amount": 1500,
-                "join_date": "2026-08-01",
-                "history": [{"date": "2026-08-01", "amount": 1500, "plan": "Monthly Plan", "status": "Paid"}]
-            },
-            {
-                "name": "Priya Patel", "phone": "918765432109", "batch": "Evening", "plan": "3 Month Plan", 
-                "paid_on": "2026-08-01", "valid_till": "2026-11-01", "status": "Pending", "amount": 4000,
-                "join_date": "2026-08-01",
-                "history": [{"date": "2026-08-01", "amount": 4000, "plan": "3 Month Plan", "status": "Pending"}]
-            },
+            {"name": "Rahul Sharma", "phone": "919876543210", "batch": "Morning", "plan": "Monthly Plan", "paid_on": "2026-08-01", "valid_till": "2026-09-01", "status": "Paid", "amount": 1500},
+            {"name": "Priya Patel", "phone": "918765432109", "batch": "Evening", "plan": "3 Month Plan", "paid_on": "2026-08-01", "valid_till": "2026-11-01", "status": "Pending", "amount": 4000},
         ]
         df = pd.DataFrame(st.session_state.students)
         df.to_csv(DB_FILE, index=False)
 
 def save_data():
-    # Convert history lists to safe strings before exporting to spreadsheet file
-    export_list = []
-    for s in st.session_state.students:
-        copy_s = s.copy()
-        copy_s['history'] = str(s['history'])
-        export_list.append(copy_s)
-    df = pd.DataFrame(export_list)
+    df = pd.DataFrame(st.session_state.students)
     df.to_csv(DB_FILE, index=False)
 
 st.title("💃 Roots Zumba Fitness Studio - Class Manager")
 st.subheader(f"Trackings & Dues for {datetime.now().strftime('%B %Y')}")
 
-# Top Metric Dashboard Panels
-total_students = len(st.session_state.students)
-paid_count = sum(1 for s in st.session_state.students if s["status"] == "Paid")
-pending_count = sum(1 for s in st.session_state.students if s["status"] == "Pending")
-overdue_count = sum(1 for s in st.session_state.students if s["status"] == "Overdue")
-total_earnings = sum(int(s["amount"]) for s in st.session_state.students if s["status"] == "Paid")
+# Convert list to DataFrame for quick operations
+df_master = pd.DataFrame(st.session_state.students)
+
+# Calculate metrics based only on the LATEST status of each unique student
+if not df_master.empty:
+    df_latest = df_master.sort_values('paid_on').groupby('name').last().reset_index()
+    total_students = len(df_latest['name'].unique())
+    paid_count = sum(1 for s in df_latest['status'] if s == "Paid")
+    pending_count = sum(1 for s in df_latest['status'] if s == "Pending")
+    overdue_count = sum(1 for s in df_latest['status'] if s == "Overdue")
+    total_earnings = sum(int(s) for s in df_master[df_master['status'] == "Paid"]['amount'])
+else:
+    total_students = paid_count = pending_count = overdue_count = total_earnings = 0
 
 col1, col2, col3, col4, col5 = st.columns(5)
 col1.metric("Total Active Students", total_students)
@@ -83,46 +63,48 @@ col5.metric("Collected Income", f"₹{total_earnings}")
 
 st.markdown("---")
 
-# Pending Dues Radar Reminder Box
+# Pending Dues Radar Reminder Box (Looks at latest student status entries)
 st.header("🚨 Pending Dues Reminder Radar")
-due_students = [s for s in st.session_state.students if s["status"] in ["Pending", "Overdue"]]
-
-if due_students:
-    with st.expander(f"⚠️ YOU HAVE {len(due_students)} PENDING DUES TO COLLECT!", expanded=True):
-        for student in due_students:
-            msg = f"Dear {student['name']},\n\nThis is a friendly reminder from Roots Zumba Fitness Studio. 😊 Your fee of ₹{student['amount']} is currently marked as {student['status'].lower()}.\n\nKindly clear your dues at your earliest convenience. Thank you! 🙏✨"
-            encoded_msg = urllib.parse.quote(msg)
-            wa_link = f"whatsapp://send?phone={student['phone']}&text={encoded_msg}"
-            
-            c_name, c_batch, c_status, c_action = st.columns(4)
-            c_name.markdown(f"👤 **{student['name']}**")
-            c_batch.markdown(f"`{student['batch']} Batch`")
-            badge_color = "🔴 Overdue" if student['status'] == "Overdue" else "🟡 Pending"
-            c_status.markdown(f"**{badge_color}**")
-            
-            link_html = f'<a href="{wa_link}" target="_top" style="text-decoration:none; background-color:#25D366; color:white; padding:6px 12px; border-radius:4px; font-weight:bold; display:inline-block;">💬 Send Link</a>'
-            c_action.markdown(link_html, unsafe_allow_html=True)
-            st.markdown("<hr style='margin:0.2em 0px; border-color:#fff3cd;'>", unsafe_allow_html=True)
+if not df_master.empty:
+    df_due = df_latest[df_latest['status'].isin(["Pending", "Overdue"])]
+    if not df_due.empty:
+        with st.expander(f"⚠️ YOU HAVE {len(df_due)} PENDING DUES TO COLLECT!", expanded=True):
+            for _, student in df_due.iterrows():
+                msg = f"Dear {student['name']},\n\nThis is a friendly reminder from Roots Zumba Fitness Studio. 😊 Your fee of ₹{student['amount']} is currently marked as {student['status'].lower()}.\n\nKindly clear your dues at your earliest convenience. Thank you! 🙏✨"
+                encoded_msg = urllib.parse.quote(msg)
+                wa_link = f"whatsapp://send?phone={student['phone']}&text={encoded_msg}"
+                
+                c_name, c_batch, c_status, c_action = st.columns(4)
+                c_name.markdown(f"👤 **{student['name']}**")
+                c_batch.markdown(f"`{student['batch']} Batch`")
+                badge_color = "🔴 Overdue" if student['status'] == "Overdue" else "🟡 Pending"
+                c_status.markdown(f"**{badge_color}**")
+                
+                link_html = f'<a href="{wa_link}" target="_top" style="text-decoration:none; background-color:#25D366; color:white; padding:6px 12px; border-radius:4px; font-weight:bold; display:inline-block;">💬 Send Link</a>'
+                c_action.markdown(link_html, unsafe_allow_html=True)
+                st.markdown("<hr style='margin:0.2em 0px; border-color:#fff3cd;'>", unsafe_allow_html=True)
+    else:
+        st.success("🎉 All clear! Every single student has paid up for this cycle.")
 else:
-    st.success("🎉 All clear! Every single student has paid up for this cycle.")
+    st.info("Roster is currently empty.")
 
 st.markdown("---")
 
-# Section 1: Register a New Member
-st.header("➕ Register New Student")
+# Section 1: Register a New Member or Log a Renewed Month Payment
+st.header("➕ Register Student or Log Renewal Payment")
 with st.form("add_student_form", clear_on_submit=True):
     c1, c2, c3 = st.columns(3)
-    new_name = c1.text_input("Full Name")
+    new_name = c1.text_input("Full Name (Type exactly to add a new month log to an existing user)")
     new_phone = c2.text_input("WhatsApp Number (10 digits or with 91)")
     new_amount = c3.number_input("Monthly Fee (INR)", min_value=0, value=1500, step=100)
     
     c4, c5, c6, c7 = st.columns(4)
     new_batch = c4.selectbox("Batch", ["Morning", "Evening"])
     new_plan = c5.selectbox("Plan Duration", ["Monthly Plan", "3 Month Plan", "6 Month Plan", "Year Plan"])
-    new_paid_date = c6.date_input("Fees Paid Date / Date of Joining", datetime.today())
+    new_paid_date = c6.date_input("Fees Paid Date", datetime.today())
     new_status = c7.selectbox("Payment Status", ["Paid", "Pending", "Overdue"])
     
-    submit_btn = st.form_submit_button("Add Student to Roster")
+    submit_btn = st.form_submit_button("Save Entry / Record Payment")
     
     if submit_btn and new_name and new_phone:
         clean_phone = "".join(filter(str.isdigit, new_phone))
@@ -133,70 +115,87 @@ with st.form("add_student_form", clear_on_submit=True):
         total_days = months_to_add * 30.436875
         valid_date = new_paid_date + timedelta(days=total_days)
         
-        formatted_paid_on = new_paid_date.strftime("%Y-%m-%d")
-        
         st.session_state.students.append({
-            "name": new_name,
+            "name": new_name.strip(),
             "phone": clean_phone,
             "batch": new_batch,
             "plan": new_plan,
-            "paid_on": formatted_paid_on,
+            "paid_on": new_paid_date.strftime("%Y-%m-%d"),
             "valid_till": valid_date.strftime("%Y-%m-%d"),
             "status": new_status,
-            "amount": new_amount,
-            "join_date": formatted_paid_on,
-            "history": [{"date": formatted_paid_on, "amount": new_amount, "plan": new_plan, "status": new_status}]
+            "amount": new_amount
         })
         save_data()
-        st.success(f"Successfully added {new_name} to the roster with initial logs!")
+        st.success(f"Successfully recorded transaction entry for {new_name}!")
         st.rerun()
 
 st.markdown("---")
 
-# Section 2: Student Directory with Expandable History Tracking
+# Section 2: Separate Batch Tab Layout Filtering Selection
 st.header("📋 Student Directory")
+
+# Integrated Live Search Box
+search_query = st.text_input("🔍 Search Student Profile by Name:", "").lower().strip()
+
 batch_filter = st.radio("Filter View by Batch:", ["All Students", "Morning Batch Only", "Evening Batch Only"], horizontal=True)
 
-filtered_students = st.session_state.students
-if batch_filter == "Morning Batch Only":
-    filtered_students = [s for s in st.session_state.students if s.get("batch") == "Morning"]
-elif batch_filter == "Evening Batch Only":
-    filtered_students = [s for s in st.session_state.students if s.get("batch") == "Evening"]
-
-if not filtered_students:
-    st.info("No students found matching this filter.")
-else:
-    for idx, student in enumerate(filtered_students):
-        master_idx = st.session_state.students.index(student)
+if not df_master.empty:
+    # Filter the unique student profiles to keep the main list clean and short
+    unique_names = df_master['name'].unique()
+    
+    for u_name in unique_names:
+        # Get all historical records for this specific person
+        history = df_master[df_master['name'] == u_name].sort_values('paid_on', ascending=False)
+        latest_record = history.iloc[0]
+        
+        # Apply search query filter logic
+        if search_query and search_query not in u_name.lower():
+            continue
+            
+        # Apply batch selection filters
+        if batch_filter == "Morning Batch Only" and latest_record['batch'] != "Morning":
+            continue
+        elif batch_filter == "Evening Batch Only" and latest_record['batch'] != "Evening":
+            continue
+            
+        master_idx = st.session_state.students.index(latest_record.to_dict())
         
         with st.container():
+            # Balanced Column grid for mobile viewing scannability
             r1, r2, r3, r4, r5, r6 = st.columns([2.2, 2.2, 1.2, 1.2, 1.5, 0.7])
             
-            # Display student identity details along with their permanent joining date timestamp tracker
-            joined_date_val = student.get('join_date', student.get('paid_on', 'N/A'))
-            r1.markdown(f"👤 **{student['name']}**  \n`🌅 {student.get('batch', 'Morning')} Batch`  \n📅 **Joined On:** `{joined_date_val}`")
+            r1.markdown(f"👤 **{latest_record['name']}**  \n`🌅 {latest_record['batch']} Batch`")
+            r2.markdown(f"📱 +{latest_record['phone']}  \n🗓️ Plan: {latest_record['plan']}")
             
-            paid_date_val = student.get('paid_on', 'N/A')
-            r2.markdown(f"📱 +{student['phone']}  \n💳 **Last Paid On:** `{paid_date_val}`  \n🗓️ Plan: {student.get('plan', 'Monthly Plan')}")
-            
+            # Interactive status change dropdown panel targets only their latest month log record
             new_status = r3.selectbox(
-                "Status", ["Paid", "Pending", "Overdue"], 
-                index=["Paid", "Pending", "Overdue"].index(student["status"]), 
+                "Current Status", ["Paid", "Pending", "Overdue"], 
+                index=["Paid", "Pending", "Overdue"].index(latest_record["status"]), 
                 key=f"status_{master_idx}"
             )
-            
-            # Trigger state update workflow and append automated record log when toggling statuses live
-            if new_status != student["status"]:
-                st.session_state.students[master_idx]["status"] = new_status
-                today_str = datetime.now().strftime("%Y-%m-%d")
+            if new_status != latest_record["status"]:
+                # Find the exact original item position in session state array dictionary list
+                for i, s in enumerate(st.session_state.students):
+                    if s['name'] == latest_record['name'] and s['paid_on'] == latest_record['paid_on']:
+                        st.session_state.students[i]["status"] = new_status
+                        if new_status == "Paid":
+                            st.session_state.students[i]["paid_on"] = datetime.now().strftime("%Y-%m-%d")
+                        break
+                save_data()
+                st.rerun()
                 
-                if new_status == "Paid":
-                    st.session_state.students[master_idx]["paid_on"] = today_str
-                    # Automatically calculate updated extended validity window parameters
-                    curr_plan = student.get('plan', 'Monthly Plan')
-                    m_add = {"Monthly Plan": 1, "3 Month Plan": 3, "6 Month Plan": 6, "Year Plan": 12}.get(curr_plan, 1)
-                    v_date = datetime.now() + timedelta(days=m_add * 30.436)
-                    st.session_state.students[master_idx]["valid_till"] = v_date.strftime("%Y-%m-%d")
+            r4.markdown(f"💰 ₹{latest_record['amount']}  \n⌛ **Exp:** `{latest_record['valid_till']}`")
+            
+            if latest_record["status"] in ["Pending", "Overdue"]:
+                msg = f"Dear {latest_record['name']},\n\nThis is a friendly reminder from Roots Zumba Fitness Studio. 😊 Your monthly fee of ₹{latest_record['amount']} is currently marked as {latest_record['status'].lower()}.\n\nPlease clear your dues at your earliest convenience. Thank you! 🙏✨"
+                encoded_msg = urllib.parse.quote(msg)
+                wa_link = f"whatsapp://send?phone={latest_record['phone']}&text={encoded_msg}"
+                r5.markdown(f'<a href="{wa_link}" target="_top" style="text-decoration:none; background-color:#25D366; color:white; padding:8px 16px; border-radius:4px; font-weight:bold; display:inline-block;">💬 Send Reminder</a>', unsafe_allow_html=True)
+            else:
+                r5.write("✅ Up to Date")
+                
+            if r6.button("🗑️", key=f"del_{master_idx}"):
+
 
 
 
