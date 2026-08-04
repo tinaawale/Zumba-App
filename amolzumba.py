@@ -10,18 +10,30 @@ st.set_page_config(page_title="Roots Zumba Manager", page_icon="💃", layout="w
 # Persistent storage file path
 DB_FILE = "zumba_students_data.csv"
 
-# Load existing data or initialize default records
+# Load existing data with automatic error recovery
 if 'students' not in st.session_state:
+    loaded = False
     if os.path.exists(DB_FILE):
-        df = pd.read_csv(DB_FILE)
-        df['phone'] = df['phone'].astype(str)
-        st.session_state.students = df.to_dict('records')
-    else:
+        try:
+            # Check if file size is greater than 0 bytes to prevent EmptyDataError
+            if os.path.getsize(DB_FILE) > 0:
+                df = pd.read_csv(DB_FILE)
+                if not df.empty:
+                    df['phone'] = df['phone'].astype(str)
+                    st.session_state.students = df.to_dict('records')
+                    loaded = True
+        except Exception:
+            pass  # If file reading fails, fall back to default setup safely
+            
+    if not loaded:
+        # Default fresh template setup if file is missing, empty, or corrupt
         st.session_state.students = [
             {"name": "Rahul Sharma", "phone": "919876543210", "batch": "Morning", "plan": "Monthly Plan", "paid_on": "2026-08-01", "valid_till": "2026-09-01", "status": "Paid", "amount": 1500},
             {"name": "Priya Patel", "phone": "918765432109", "batch": "Evening", "plan": "3 Month Plan", "paid_on": "2026-08-01", "valid_till": "2026-11-01", "status": "Pending", "amount": 4000},
-            {"name": "Sneha Kulkarni", "phone": "916543210987", "batch": "Morning", "plan": "Monthly Plan", "paid_on": "2026-07-01", "valid_till": "2026-08-01", "status": "Overdue", "amount": 1500},
         ]
+        # Force write a clean layout structure right away
+        df = pd.DataFrame(st.session_state.students)
+        df.to_csv(DB_FILE, index=False)
 
 def save_data():
     df = pd.DataFrame(st.session_state.students)
@@ -126,12 +138,10 @@ else:
         master_idx = st.session_state.students.index(student)
         
         with st.container():
-            # Configured 6-column interface tracking layout
             r1, r2, r3, r4, r5, r6 = st.columns([2.2, 2.2, 1.2, 1.2, 1.5, 0.7])
             
             r1.markdown(f"👤 **{student['name']}**  \n`🌅 {student.get('batch', 'Morning')} Batch`")
             
-            # FIXED DISPLAY: Explicitly rendering the recorded "Paid On" timestamp here
             paid_date_val = student.get('paid_on', 'N/A')
             r2.markdown(f"📱 +{student['phone']}  \n💳 **Paid On:** `{paid_date_val}`")
             
@@ -142,7 +152,6 @@ else:
             )
             if new_status != student["status"]:
                 st.session_state.students[master_idx]["status"] = new_status
-                # Auto-updates transaction execution date timestamp if marked as paid live
                 if new_status == "Paid":
                     st.session_state.students[master_idx]["paid_on"] = datetime.now().strftime("%Y-%m-%d")
                 save_data()
@@ -164,6 +173,7 @@ else:
                 st.rerun()
                 
             st.markdown("<hr style='margin:0.5em 0px; border-color:#eee;'>", unsafe_allow_html=True)
+
 
 
 
