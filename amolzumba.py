@@ -189,5 +189,6 @@ if not df_master.empty:
                 save_data()
                 st.rerun()
                 
-            # FIXED INDENTATION ALIGNMENT: Perfectly structured expansion history drawer tray
+            # FIXED INDENTATION: Aligned 16-space block inside expander container
             with st.expander(f"📜 View History Ledger Timeline ({len(history)} past entries)"):
+
