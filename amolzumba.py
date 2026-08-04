@@ -126,11 +126,14 @@ else:
         master_idx = st.session_state.students.index(student)
         
         with st.container():
-            # NEW LAYOUT DESIGN: Adjusted columns layout to seamlessly house the trash icon button structure
-            r1, r2, r3, r4, r5, r6 = st.columns([2, 2, 1.2, 1.2, 1.5, 0.8])
+            # Configured 6-column interface tracking layout
+            r1, r2, r3, r4, r5, r6 = st.columns([2.2, 2.2, 1.2, 1.2, 1.5, 0.7])
             
-            r1.markdown(f"👤 **{student['name']}**  \n`🌅 {student.get('batch', 'Morning')}`")
-            r2.markdown(f"📱 +{student['phone']}  \n🗓️ Plan: {student.get('plan', 'Monthly')}")
+            r1.markdown(f"👤 **{student['name']}**  \n`🌅 {student.get('batch', 'Morning')} Batch`")
+            
+            # FIXED DISPLAY: Explicitly rendering the recorded "Paid On" timestamp here
+            paid_date_val = student.get('paid_on', 'N/A')
+            r2.markdown(f"📱 +{student['phone']}  \n💳 **Paid On:** `{paid_date_val}`")
             
             new_status = r3.selectbox(
                 "Status", ["Paid", "Pending", "Overdue"], 
@@ -139,10 +142,13 @@ else:
             )
             if new_status != student["status"]:
                 st.session_state.students[master_idx]["status"] = new_status
+                # Auto-updates transaction execution date timestamp if marked as paid live
+                if new_status == "Paid":
+                    st.session_state.students[master_idx]["paid_on"] = datetime.now().strftime("%Y-%m-%d")
                 save_data()
                 st.rerun()
                 
-            r4.text(f"💰 ₹{student['amount']}  \n⌛ Exp: {student.get('valid_till', 'N/A')}")
+            r4.markdown(f"💰 ₹{student['amount']}  \n⌛ **Exp:** `{student.get('valid_till', 'N/A')}`")
             
             if student["status"] in ["Pending", "Overdue"]:
                 msg = f"Dear {student['name']},\n\nThis is a friendly reminder from Roots Zumba Fitness Studio. 😊 Your monthly fee of ₹{student['amount']} for your {student.get('plan','package')} is currently marked as {student['status'].lower()}.\n\nPlease clear your dues at your earliest convenience. Thank you! 🙏✨"
@@ -152,14 +158,13 @@ else:
             else:
                 r5.write("✅ Up to Date")
                 
-            # NEW FEATURE: One-Click Instant Delete Trigger Button Element Block
             if r6.button("🗑️", key=f"del_{master_idx}", help=f"Remove {student['name']} permanently"):
                 st.session_state.students.pop(master_idx)
                 save_data()
-                st.toast(f"Removed {student['name']} from roster.")
                 st.rerun()
                 
             st.markdown("<hr style='margin:0.5em 0px; border-color:#eee;'>", unsafe_allow_html=True)
+
 
 
 
